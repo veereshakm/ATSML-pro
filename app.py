@@ -53,15 +53,23 @@ def extract_cgpa(text):
     return None
 
 def calculate_ats_score(text, cgpa=None):
+    import nltk
+    from nltk.stem import PorterStemmer
+    nltk.download('punkt', quiet=True)
+    
+    ps = PorterStemmer()
+    tokens = nltk.word_tokenize(text.lower())
+    stemmed_text = [ps.stem(word) for word in tokens]
+
     keyword_categories = {
         'technical_skills': {
-            'weight': 0.3,
+            'weight': 0.35,
             'keywords': ['python', 'java', 'javascript', 'html', 'css', 'sql', 'machine learning',
                          'data analysis', 'aws', 'docker', 'git', 'react', 'node', 'mongodb',
                          'c++', 'numpy', 'pandas', 'tensorflow', 'pytorch', 'spring', 'django']
         },
         'soft_skills': {
-            'weight': 0.2,
+            'weight': 0.25,
             'keywords': ['leadership', 'teamwork', 'communication', 'problem solving', 
                          'analytical', 'initiative', 'project management']
         },
@@ -76,175 +84,183 @@ def calculate_ats_score(text, cgpa=None):
         }
     }
 
-    text = text.lower()
     final_score = 0
     feedback = []
 
     for category, data in keyword_categories.items():
         match_count = 0
         for keyword in data['keywords']:
-            # Use regex for better matching (like 'node', 'nodejs', 'node.js')
-            if re.search(rf'\b{re.escape(keyword)}\b', text):
+            stemmed_keyword = ps.stem(keyword)
+            if stemmed_keyword in stemmed_text:
                 match_count += 1
 
         total_keywords = len(data['keywords'])
-        category_score = (match_count / total_keywords) * 100
+        match_ratio = match_count / total_keywords
+        category_score = match_ratio * 100
         weighted_score = category_score * data['weight']
         final_score += weighted_score
 
-        if category_score < 40:
+        if match_ratio < 0.4:
             feedback.append(f"Consider adding more {category.replace('_', ' ')} to your resume.")
 
-    return round(final_score, 2), feedback
+    # Calibration boost to bring raw score in line with real-world ATS
+    calibrated_score = min(round(final_score * 1.15, 2), 100.0)
+    return calibrated_score, feedback
+
 
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Campus Placement Predictor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Google Fonts for a clean, modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
     <style>
-        @keyframes celebrate {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
+        * {
+            box-sizing: border-box;
         }
-        @keyframes motivate {
-            0% { transform: translateX(-5px); }
-            50% { transform: translateX(5px); }
-            100% { transform: translateX(-5px); }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to right, #f5f7fa, #c3cfe2);
+            margin: 0;
+            padding: 0;
+            color: #2c3e50;
         }
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            max-width: 800px; 
-            margin: 0 auto; 
+
+        .container {
+            max-width: 900px;
+            margin: 50px auto;
+            background: #ffffff;
             padding: 40px;
-            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-            min-height: 100vh;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.4rem;
+            margin-bottom: 30px;
+            color: #34495e;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+
+        input[type="file"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dfe6e9;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        input[type="file"] {
+            padding: 10px 12px;
+            background-color: #ecf0f1;
+        }
+
+        button {
+            margin-top: 30px;
+            width: 100%;
+            background-color: #3498db;
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .result-box {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #f1f2f6;
+            border-left: 5px solid #3498db;
+            border-radius: 10px;
+        }
+
+        .result-box h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
             color: #2d3436;
         }
-        .form-group { 
-            margin: 20px 0; 
-            background: rgba(255, 255, 255, 0.9);
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-            transition: transform 0.3s ease;
-        }
-        .form-group:hover {
-            transform: translateY(-5px);
-        }
-        input { 
-            padding: 12px;
-            width: 100%;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-        }
-        input:focus {
-            border-color: #4CAF50;
-            outline: none;
-            box-shadow: 0 0 5px rgba(76,175,80,0.3);
-        }
-        button { 
-            padding: 15px 30px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 25px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            width: 100%;
+
+        .suggestions {
             margin-top: 20px;
+            list-style: disc inside;
         }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(76,175,80,0.4);
-        }
-        .result { 
-            margin-top: 30px;
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 18px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .success { 
-            background: #4CAF50;
-            color: white;
-            animation: celebrate 1s ease infinite;
-        }
-        .failure { 
-            background: #ff6b6b;
-            color: white;
-            animation: motivate 2s ease infinite;
-        }
-        .upload-section {
-            margin-bottom: 20px;
-        }
-        .or-divider {
-            text-align: center;
-            margin: 20px 0;
-            font-weight: bold;
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                margin: 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            button {
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
 <body>
-    <h2>Campus Placement Predictor</h2>
-    <div style="background: #ffeeba; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffeeba;">
-        <strong>Note:</strong> Please ensure your resume includes your CGPA information (e.g., "CGPA: 8.5" or "GPA: 8.5/10"). If not found, you'll need to enter it manually.
-    </div>
+
+<div class="container">
+    <h1>Campus Placement Predictor</h1>
     <form method="POST" enctype="multipart/form-data">
-        <div class="form-group upload-section">
-            <label>Upload Your Resume (PDF or DOCX):</label><br>
-            <input type="file" name="resume" accept=".pdf,.docx">
-        </div>
-        <div class="or-divider">OR</div>
-        <div class="form-group">
-            <label>CGPA (0-10):</label><br>
-            <input type="number" name="cgpa" step="0.01" min="0" max="10" value="{{ cgpa if cgpa else '' }}">
-        </div>
-        <div class="form-group">
-            <label>ATS Score (0-100):</label><br>
-            <input type="number" name="ats_score" min="0" max="100" value="{{ ats_score if ats_score else '' }}">
-        </div>
-        <button type="submit">Predict</button>
-        {% if result %}
-        <button type="button" onclick="window.location.href='/'" style="background: #ff6b6b; margin-top: 10px;">Reset</button>
-        {% endif %}
+        <label for="resume">Upload Resume (PDF/DOCX):</label>
+        <input type="file" id="resume" name="resume" accept=".pdf,.docx" required>
+
+        <label for="cgpa">Enter your CGPA (0-10):</label>
+        <input type="number" id="cgpa" name="cgpa" step="0.01" min="0" max="10" required>
+
+        <label for="ats_score">Enter your ATS Score (0-100):</label>
+        <input type="number" id="ats_score" name="ats_score" min="0" max="100" required>
+
+        <button type="submit">Predict Placement Chance</button>
     </form>
+
     {% if result %}
-    <div class="result {{ 'success' if placed else 'failure' }}">
-        {% if uploaded_resume %}
-        <p><strong>Resume Analysis:</strong><br>
-        Calculated ATS Score: {{ ats_score }}<br>
-        {% if extracted_cgpa %}
-        Extracted CGPA: {{ extracted_cgpa }}<br>
-        {% endif %}
-        </p>
-        {% endif %}
-        <p><strong>Final Scores:</strong><br>
-        CGPA: {{ cgpa }}<br>
-        ATS Score: {{ ats_score }}</p>
-        <p>{{ result }}</p>
+    <div class="result-box">
+        <h2>Prediction Result</h2>
+        <p><strong>CGPA:</strong> {{ cgpa }}</p>
+        <p><strong>ATS Score:</strong> {{ ats_score }}</p>
+        <p><strong>Prediction:</strong> {{ result }}</p>
+
         {% if feedback %}
-        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-            <h3>Resume Improvement Suggestions:</h3>
-            <ul style="list-style-type: disc; margin-left: 20px;">
-                {% for suggestion in feedback %}
-                <li>{{ suggestion }}</li>
-                {% endfor %}
-            </ul>
-        </div>
+        <h3>Suggestions to Improve Your Chances:</h3>
+        <ul class="suggestions">
+            {% for suggestion in feedback %}
+            <li>{{ suggestion }}</li>
+            {% endfor %}
+        </ul>
         {% endif %}
     </div>
     {% endif %}
+</div>
+
 </body>
 </html>
+
 '''
 
 @app.route("/", methods=["GET", "POST"])
