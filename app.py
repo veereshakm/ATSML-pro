@@ -53,18 +53,17 @@ def extract_cgpa(text):
     return None
 
 def calculate_ats_score(text, cgpa=None):
-    # Categories of keywords with weights (70% weight)
     keyword_categories = {
         'technical_skills': {
             'weight': 0.3,
             'keywords': ['python', 'java', 'javascript', 'html', 'css', 'sql', 'machine learning',
-                        'data analysis', 'aws', 'docker', 'git', 'react', 'node.js', 'mongodb',
-                        'c++', 'numpy', 'pandas', 'tensorflow', 'pytorch', 'spring', 'django']
+                         'data analysis', 'aws', 'docker', 'git', 'react', 'node', 'mongodb',
+                         'c++', 'numpy', 'pandas', 'tensorflow', 'pytorch', 'spring', 'django']
         },
         'soft_skills': {
             'weight': 0.2,
-            'keywords': ['leadership', 'team work', 'communication', 'problem solving', 
-                        'analytical', 'initiative', 'project management']
+            'keywords': ['leadership', 'teamwork', 'communication', 'problem solving', 
+                         'analytical', 'initiative', 'project management']
         },
         'education': {
             'weight': 0.2,
@@ -73,24 +72,31 @@ def calculate_ats_score(text, cgpa=None):
         'experience': {
             'weight': 0.2,
             'keywords': ['experience', 'internship', 'project', 'developed', 'implemented',
-                        'managed', 'led', 'created', 'achieved']
+                         'managed', 'led', 'created', 'achieved']
         }
     }
-    
+
     text = text.lower()
     final_score = 0
     feedback = []
-    
+
     for category, data in keyword_categories.items():
-        matches = sum(1 for keyword in data['keywords'] if keyword in text)
-        category_score = min(100, (matches / len(data['keywords'])) * 100)
+        match_count = 0
+        for keyword in data['keywords']:
+            # Use regex for better matching (like 'node', 'nodejs', 'node.js')
+            if re.search(rf'\b{re.escape(keyword)}\b', text):
+                match_count += 1
+
+        total_keywords = len(data['keywords'])
+        category_score = (match_count / total_keywords) * 100
         weighted_score = category_score * data['weight']
         final_score += weighted_score
-        
-        if category_score < 50:
+
+        if category_score < 40:
             feedback.append(f"Consider adding more {category.replace('_', ' ')} to your resume.")
-    
+
     return round(final_score, 2), feedback
+
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -295,12 +301,17 @@ def index():
                 return "Please enter valid numerical values for CGPA and ATS score"
         
         # Prediction logic
-        if cgpa > 7.0 and ats_score > 60:
-            result = "Congratulations! Based on your scores, you have a good chance of getting placed!"
+        # Prediction logic
+        if cgpa >= 9.0 and ats_score >= 75:
+            result = "Excellent profile! You're highly competitive for campus placements!"
+            placed = True
+        elif cgpa >= 7.0 and ats_score >= 60:
+            result = "Good chance! Keep your resume sharp and prepare for interviews."
             placed = True
         else:
-            result = "Sorry, you should work harder. Try to improve your CGPA and ATS score."
+            result = "You can improve! Boost your resume and gain more experience to stand out."
             placed = False
+
     
     return render_template_string(
         HTML_TEMPLATE,
